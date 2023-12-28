@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Barang;
 use App\Models\Transaksi;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +22,25 @@ class HomeController extends Controller
         $date_start = Carbon::parse($date_start)->format('Y-m-d 00:00:00');
         $date_end = Carbon::parse($date_end)->format('Y-m-d 23:59:59');
 
+        $users = User::whereIn('role', ['kasir', 'admin'])->get();
         $barang = Barang::get()->count();
-        $transaksi = Transaksi::whereBetween('tanggal', [$date_start, $date_end])->count();
-        $pendapatan_hari_ini = Transaksi::where('tanggal', date('Y-m-d'))->get()->sum('keuntungan');
-        $pendapatan_total = Transaksi::whereBetween('tanggal', [$date_start, $date_end])->get()->sum('keuntungan');
+        $transaksi = Transaksi::whereBetween('tanggal', [$date_start, $date_end]);
+        if($request->user_id != 0){
+            $transaksi->where('user_id', $request->user_id);
+        }
+        $transaksi = $transaksi->count();
+
+        $pendapatan_hari_ini = Transaksi::where('tanggal', date('Y-m-d'));
+        if($request->user_id != 0){
+            $pendapatan_hari_ini->where('user_id', $request->user_id);
+        }
+        $pendapatan_hari_ini = $pendapatan_hari_ini->get()->sum('keuntungan');
+
+        $pendapatan_total = Transaksi::whereBetween('tanggal', [$date_start, $date_end]);
+        if($request->user_id != 0){
+            $pendapatan_total->where('user_id', $request->user_id);
+        }
+        $pendapatan_total = $pendapatan_total->get()->sum('keuntungan');
 
         $barang_terlaris =  DB::table('transaksi_details')
                 ->selectRaw('
@@ -77,9 +93,11 @@ class HomeController extends Controller
         $grafikBulanIni = DB::table('transaksi_details')
             ->rightJoin('transaksis', 'transaksi_details.transaksi_id', '=', 'transaksis.id')
             ->selectRaw('transaksis.tanggal, COALESCE(SUM((transaksi_details.harga_jual - transaksi_details.harga_beli) * transaksi_details.qty), 0) as total_keuntungan')
-            ->whereBetween('transaksis.tanggal', [$dateStart, $dateEnd])
-            ->groupBy('transaksis.tanggal')
-            ->get();
+            ->whereBetween('transaksis.tanggal', [$dateStart, $dateEnd]);
+        if($request->user_id != 0){
+            $grafikBulanIni->where('transaksis.user_id', $request->user_id);
+        }
+        $grafikBulanIni = $grafikBulanIni->groupBy('transaksis.tanggal')->get();
 
         // Membuat array untuk menyimpan data final
         $grafik_bulan_ini = [];
@@ -98,6 +116,7 @@ class HomeController extends Controller
 
         return view('index', [
             'title' => 'Login Page',
+            'users' => $users,
             'barang' => $barang,
             'transaksi' => $transaksi,
             'pendapatan_hari_ini' => $pendapatan_hari_ini,

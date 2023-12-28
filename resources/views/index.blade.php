@@ -28,9 +28,9 @@
                                         <label>Kasir</label>
                                         <select class="form-control" name="user_id" id="user_id">
                                             <option value="0">--All--</option>
-                                            {{-- @foreach ($users as $user)
+                                            @foreach ($users as $user)
                                                 <option value="{{ $user->id }}">{{ $user->name }}</option>
-                                            @endforeach --}}
+                                            @endforeach
                                             @if (request()->has('user_id'))
                                                 <script>
                                                     $(`#user_id`).val("{{ Request::get('user_id') }}").change()
